@@ -1,3 +1,6 @@
+<img width="885" height="645" alt="Screenshot 2026-10-29 at 8 03 51 PM" src="https://github.com/user-attachments/assets/798364ba-a2c6-4de9-8545-4a8bae57cd6e" />
+
+
 # Kubernetes Mini Demo
 
 A very small project that shows the core ideas of Kubernetes and CI/CD:
