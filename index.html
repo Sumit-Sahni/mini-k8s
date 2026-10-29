@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kubernetes Mini Demo</title>
+  
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 32px 20px; }
+    h1 { margin: 0 0 4px; }
+    .sub { color: #94a3b8; margin: 0 0 24px; }
+    .big { border-radius: 14px; padding: 28px 20px; text-align: center; transition: background .4s; }
+    .big small { display: block; opacity: .8; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; }
+    .big b { font-size: 22px; word-break: break-all; font-family: ui-monospace, Menlo, monospace; }
+    .row { display: flex; gap: 12px; margin: 14px 0; }
+    .box { flex: 1; background: #1e293b; border-radius: 10px; padding: 12px; text-align: center; }
+    .box small { color: #94a3b8; display: block; font-size: 12px; }
+    .box b { font-size: 20px; }
+    h2 { font-size: 15px; margin: 24px 0 8px; }
+    .squares { display: flex; gap: 6px; flex-wrap: wrap; }
+    .sq { width: 26px; height: 26px; border-radius: 6px; }
+    .counts div { font-family: ui-monospace, Menlo, monospace; font-size: 13px; padding: 3px 0; }
+    button { cursor: pointer; border: 1px solid #7f2d2d; background: #2a1518; color: #fecaca; border-radius: 8px; padding: 10px 16px; font-size: 14px; font-weight: 600; }
+    .msg { margin-top: 12px; font-size: 14px; color: #fbbf24; min-height: 20px; }
+    .down { background: #7f1d1d !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Kubernetes Mini Demo Build by Sumit Sahni</h1>
+    <p class="sub">Every second this page asks the app "who are you?". The answer is the pod that replied.</p>
+
+    <div class="big" id="big">
+      <small>Answered by pod</small>
+      <b id="pod">...</b>
+    </div>
+
+    <div class="row">
+      <div class="box"><small>Version</small><b id="version">-</b></div>
+      <div class="box"><small>This pod's uptime</small><b id="uptime">-</b></div>
+      <div class="box"><small>Answers from this pod</small><b id="served">-</b></div>
+    </div>
+
+    <h2>Last 15 answers (same colour = same pod)</h2>
+    <div class="squares" id="squares"></div>
+
+    <h2>Total answers per pod</h2>
+    <div class="counts" id="counts"></div>
+
+    <h2>Try to break it</h2>
+    <button id="crash">Crash a pod</button>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <script>
+    const history = [];
+    const counts = {};
+    const $ = (id) => document.getElementById(id);
+
+    // Turn a pod name into a stable colour
+    function colour(name) {
+      let h = 0;
+      for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
+      return `hsl(${h}, 65%, 42%)`;
+    }
+
+    async function tick() {
+      try {
+        const r = await fetch("/api/info", { cache: "no-store" });
+        const d = await r.json();
+        $("big").classList.remove("down");
+        $("big").style.background = colour(d.pod);
+        $("pod").textContent = d.pod;
+        $("version").textContent = d.version;
+        $("uptime").textContent = d.uptime + "s";
+        $("served").textContent = d.served;
+
+        history.unshift(d.pod);
+        if (history.length > 15) history.pop();
+        counts[d.pod] = (counts[d.pod] || 0) + 1;
+
+        $("squares").innerHTML = history
+          .map((p) => `<div class="sq" title="${p}" style="background:${colour(p)}"></div>`)
+          .join("");
+        $("counts").innerHTML = Object.entries(counts)
+          .map(([p, n]) => `<div>${p}: ${n}</div>`)
+          .join("");
+      } catch (e) {
+        $("big").classList.add("down");
+        $("pod").textContent = "no answer...";
+      }
+    }
+
+    $("crash").onclick = async () => {
+      $("msg").textContent = "Crash sent to one pod. Watch: kubectl get pods -w";
+      try { await fetch("/crash", { method: "POST" }); } catch (e) {}
+    };
+
+    tick();
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+# ONE file with two things: a Deployment (runs the pods) and a Service (the
+# stable address that spreads traffic across them).
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mini-app
+spec:
+  replicas: 3                 # run 3 copies (pods) of the app
+  selector:
+    matchLabels:
+      app: mini-app           # "manage the pods that have this label"
+  template:
+    metadata:
+      labels:
+        app: mini-app         # every pod gets this label
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/sumit-sahni/mini-app:latest # built by GitHub Actions
+          imagePullPolicy: Always                      # always download the newest "latest"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          ports:
+            - containerPort: 3000
+          env:
+            - name: APP_VERSION
+              value: "v1"     # shown in the UI. Change it to v2 to see a rolling update
+          # Kubernetes only sends traffic to a pod once this check passes
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mini-app
+spec:
+  type: NodePort              # lets minikube open it in your browser
+  selector:
+    app: mini-app             # send traffic to pods with this label
+  ports:
+    - port: 80
+      targetPort: 3000
+
+
+
+# image: mini-app:local
+# imagePullPolicy: IfNotPresent
+# Use this if you want to build the image locally and use it in minikube. You can also use a public image from Docker Hub, e.g. "sumitsahni/mini-app:latest"

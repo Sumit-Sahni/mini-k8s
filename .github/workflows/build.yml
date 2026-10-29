@@ -1,0 +1,39 @@
+name: build-and-push
+
+# Run every time you push to the main branch
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write   # allows pushing the image to GitHub's registry (ghcr.io)
+
+jobs:
+  image:
+    runs-on: ubuntu-latest   # a temporary GitHub server
+    steps:
+      # 1. Download your code onto that server
+      - uses: actions/checkout@v4
+
+      # 2. Tools needed to build for both Intel and Apple Silicon (arm64)
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      # 3. Log in to GitHub's registry using a token GitHub gives for free
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 4. The registry needs a lowercase name
+      - run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      # 5. Build the image from the Dockerfile and push it
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/${{ env.OWNER }}/mini-app:latest
